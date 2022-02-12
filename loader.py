@@ -145,9 +145,9 @@ class ValhallaAdapter:
 
 class Dataset:
     def __init__(self, csv_dir,
-                       drop_columns=['device_uuid', 'lats_start', 'speeds', 'direction'],
-                       rename_columns={'lats_end': 'lats'},
-                       target_columns=['duration', 'ts', 'lats', 'lngs', 'n_points', 'start_date']
+                       drop_columns=None,
+                       rename_columns=None,
+                       target_columns=None
                 ):
 
         self.csv_dir_path = csv_dir
