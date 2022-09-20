@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 import multiprocessing as mp
 from tqdm.auto import tqdm
+
 tqdm.pandas()
 import requests
 import psycopg2 as pg
@@ -15,6 +16,7 @@ mp.set_start_method('fork', force=True)
 
 from atpbar import register_reporter, find_reporter, flush
 from atpbar import atpbar
+
 
 class ValhallaAdapter:
     def __init__(self):
@@ -31,7 +33,7 @@ class ValhallaAdapter:
         valhalla_template.update({"costing": "auto", "shape_match": "map_snap"})
         valhalla_template["filters"] = filter_params
 
-        for track in atpbar(list(df.itertuples()), name = mp.current_process().name):
+        for track in atpbar(list(df.itertuples()), name=mp.current_process().name):
             shape = []
 
             for lat, lon, ts in zip(track.lats, track.lngs, track.ts):
@@ -97,7 +99,7 @@ class ValhallaAdapter:
 
     def get_route_info(self, df):
         filter_params = {"attributes": ["edge.way_id", "matched.edge_index", "matched.type"],
-                 "action": "include"}
+                         "action": "include"}
         valhalla_template = dict()
         valhalla_template.update({"costing": "auto", "shape_match": "map_snap"})
         valhalla_template["filters"] = filter_params
@@ -105,7 +107,7 @@ class ValhallaAdapter:
         valhalla_durations = []
         distances = []
 
-        for track in atpbar(list(df.itertuples()), name = mp.current_process().name):
+        for track in atpbar(list(df.itertuples()), name=mp.current_process().name):
             shape = []
 
             track_info = np.array(list(zip(track.lats, track.lngs, track.ts)))
@@ -143,16 +145,17 @@ class ValhallaAdapter:
 
         return pd.DataFrame({'valhalla_duration': valhalla_durations, 'distance': distances})
 
+
 class Dataset:
     def __init__(self, csv_dir,
-                       drop_columns=None,
-                       rename_columns=None,
-                       target_columns=None
-                ):
+                 drop_columns=None,
+                 rename_columns=None,
+                 target_columns=None
+                 ):
 
         self.csv_dir_path = csv_dir
         self.filenames = os.listdir(csv_dir)
-        self.filenames = list( filter(lambda x: x.split('.')[-1] == 'csv', self.filenames) )
+        self.filenames = list(filter(lambda x: x.split('.')[-1] == 'csv', self.filenames))
         self.df = pd.DataFrame([], columns=target_columns)
         self.drop_columns = drop_columns
         self.rename_columns = rename_columns
@@ -172,21 +175,21 @@ class Dataset:
             return self.df.iloc[[index]]
 
     def load(self, fname):
-        return pd.read_csv( os.path.join(self.csv_dir_path, fname))
-        
+        return pd.read_csv(os.path.join(self.csv_dir_path, fname))
+
     def get_dataset(self, min_duration=600, min_points=10, drop_index=True):
         self.df = self.df.loc[
-                np.logical_and(
-                    self.df.n_points > min_points,
-                    self.df.duration > min_duration
-                             )][self.target_columns]
+            np.logical_and(
+                self.df.n_points > min_points,
+                self.df.duration > min_duration
+            )][self.target_columns]
 
         return self.df.reset_index(drop=drop_index)
 
     def convert(self):
 
         for name in tqdm(self.filenames):
-            dataset = pd.read_csv( os.path.join(self.csv_dir_path, name))
+            dataset = pd.read_csv(os.path.join(self.csv_dir_path, name))
             if self.drop_columns:
                 dataset = dataset.drop(columns=self.drop_columns)
             if self.rename_columns:
@@ -196,14 +199,13 @@ class Dataset:
             dataset = pd.concat(dataset.tolist(), axis=0, ignore_index=True)
             self.df = pd.concat([self.df, dataset])
 
-
     def __convert_df(self, row):
 
         def ts_split(ts):
             dt = 0
             bounds = [0]
             for idx in range(len(ts) - 1):
-                dt = ts[idx] - ts[idx-1]
+                dt = ts[idx] - ts[idx - 1]
                 if dt > 120:
                     bounds.append(idx)
 
@@ -246,14 +248,15 @@ class Dataset:
             date = date.replace(minute=(date.minute // 10) * 10)
             tracks_start_date.append(date)
 
-        return pd.DataFrame({'duration': tracks_dur, 'ts': tracks_ts, 'lats': tracks_lats, 'lngs': tracks_lngs, 'n_points': tracks_n_points, 'start_date': tracks_start_date})
+        return pd.DataFrame({'duration': tracks_dur, 'ts': tracks_ts, 'lats': tracks_lats, 'lngs': tracks_lngs,
+                             'n_points': tracks_n_points, 'start_date': tracks_start_date})
 
     def to_feather(self, fname):
         self.df.to_feather(fname)
 
     def load_feather(self, fname,
-                           columns=None,
-                           use_threads=True):
+                     columns=None,
+                     use_threads=True):
         self.df = pd.read_feather(fname, columns=columns, use_threads=use_threads)
         self.drop_columns = None
         self.rename_columns = None
@@ -269,7 +272,9 @@ class Dataset:
             flush()
 
         self.df = pd.concat([self.df, matched_tracks], axis=1, ignore_index=True)
-        self.df = self.df.rename(columns={0:'dur', 1:'ts', 2:'lats', 3:'lngs', 4:'n_points', 5:'start_ts', 6:'osm_ids', 7:'directions'})
+        self.df = self.df.rename(
+            columns={0: 'dur', 1: 'ts', 2: 'lats', 3: 'lngs', 4: 'n_points', 5: 'start_ts', 6: 'osm_ids',
+                     7: 'directions'})
 
     def get_route_info(self, host='http://localhost:8002/route', n_workers=16):
         self.valhalla_adapter.valhalla_url = host
@@ -280,7 +285,9 @@ class Dataset:
             flush()
 
         self.df = pd.concat([self.df, route_info], axis=1, ignore_index=True)
-        self.df = self.df.rename(columns={0:'dur', 1:'ts', 2:'lats', 3:'lngs', 4:'n_points', 5:'start_ts', 6:'osm_ids', 7:'directions', 8:'cong_idx', 9:'valhalla_duration', 10:'distance'})
+        self.df = self.df.rename(
+            columns={0: 'dur', 1: 'ts', 2: 'lats', 3: 'lngs', 4: 'n_points', 5: 'start_ts', 6: 'osm_ids',
+                     7: 'directions', 8: 'cong_idx', 9: 'valhalla_duration', 10: 'distance'})
 
     def head(self, n=5):
         return self.df.head(n)
@@ -291,7 +298,7 @@ class Dataset:
 
         for b in self.cong_idx_bounds:
             mask = cong_idx <= b
-            counts.append( len(cong_idx[mask]) )
+            counts.append(len(cong_idx[mask]))
             mask = cong_idx > b
             cong_idx = cong_idx[mask]
         counts.append(len(cong_idx))
@@ -308,10 +315,10 @@ class Dataset:
 
         self.cong_idx_bounds = bounds
 
-        self.df['n_slow'] = [0]*len(self.df)
-        self.df['n_cong'] = [0]*len(self.df)
-        self.df['n_norm'] = [0]*len(self.df)
-        self.df['n_free'] = [0]*len(self.df)
+        self.df['n_slow'] = [0] * len(self.df)
+        self.df['n_cong'] = [0] * len(self.df)
+        self.df['n_norm'] = [0] * len(self.df)
+        self.df['n_free'] = [0] * len(self.df)
 
         self.df = self.df.progress_apply(self.__classify_cong_indexes, axis=1)
 
@@ -320,7 +327,7 @@ class Dataset:
         return df
 
     def start_date_to_ts(self):
-        self.df['start_hour'] = [0]*len(self.df)
+        self.df['start_hour'] = [0] * len(self.df)
         self.df = self.df.progress_apply(self.__start_date_to_ts, axis=1)
 
     def split(self, test_size, x_labels, y_labels, n=None, shuffle=True, rand_state=42):
@@ -353,9 +360,9 @@ class Dataset:
         conn = pg.connect(**db_auth)
 
         cong_idx_col = []
-        for date in tqdm(dataset.df.start_ts.unique()):
+        for date in tqdm(self.df.start_ts.unique()):
             cur = conn.cursor()
-            cur.execute( traffic_scores_query % date )
+            cur.execute(traffic_scores_query % date)
             raw_traffic_data = cur.fetchall()
             cur.close()
 
@@ -371,13 +378,15 @@ class Dataset:
                 for osm_id, direction in zip(track.osm_ids, track.directions):
                     c_idx = traffic_dict.get((-osm_id, direction))
                     if c_idx:
-                        track_cong_idx.append( int(c_idx*100) )
+                        track_cong_idx.append(int(c_idx * 100))
                     else:
-                        track_cong_idx.append( 0 )
+                        track_cong_idx.append(0)
 
                 cong_idx_col.append(track_cong_idx)
 
         conn.commit()
         conn.close()
         self.df = pd.concat([self.df, pd.DataFrame({'cong_idx': cong_idx_col})], axis=1, ignore_index=True)
-        self.df = self.df.rename(columns={0:'dur', 1:'ts', 2:'lats', 3:'lngs', 4:'n_points', 5:'start_ts', 6:'osm_ids', 7:'directions', 8:'cong_idx'})
+        self.df = self.df.rename(
+            columns={0: 'dur', 1: 'ts', 2: 'lats', 3: 'lngs', 4: 'n_points', 5: 'start_ts', 6: 'osm_ids',
+                     7: 'directions', 8: 'cong_idx'})

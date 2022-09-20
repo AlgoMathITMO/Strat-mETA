@@ -1,8 +1,7 @@
 from collections import defaultdict
 from time import time
-import random
-from math import copysign
 import numpy as np
+
 
 class Individual(dict):
     def __init__(self, method: dict, params_dict: dict):
@@ -33,12 +32,13 @@ class Individual(dict):
     def __eq__(self, r_obj):
         eq = True
         for key, value in self.params_dict.items():
-            eq = eq and ( r_obj.params_dict[key] == value )
+            eq = eq and (r_obj.params_dict[key] == value)
 
         return eq and (self.method.name == r_obj.method.name)
 
+
 class History(defaultdict):
-    def __init__(self, stats_names = ['params', 'MAPE', 'MAE', 'train_time', 'pred_time']):
+    def __init__(self, stats_names=['params', 'MAPE', 'MAE', 'train_time', 'pred_time']):
         super().__init__(list)
         self.stats_names = stats_names
 
@@ -86,7 +86,7 @@ class MetaParameters(dict):
         for param_name, param_meta in self.meta_dict.items():
             if random.random() < m_prob:
                 if isinstance(param_meta, tuple):
-                    self[param_name] += param_meta[2](param_meta[3]*random.gauss(mu, sigma))
+                    self[param_name] += param_meta[2](param_meta[3] * random.gauss(mu, sigma))
                     if self[param_name] < param_meta[0]:
                         self[param_name] = param_meta[0]
 
@@ -124,7 +124,7 @@ class Method(object):
 
     def train(self, X, Y):
 
-        self.method.fit(X, Y,)
+        self.method.fit(X, Y, )
 
     def predict(self, X):
 
@@ -155,44 +155,41 @@ class Method(object):
         return f"{self.name}: {self.params}"
 
 
-
 import random
-from multiprocessing import Pool
-
-import array
-import json
 
 from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
 
-from sklearn.ensemble import RandomForestRegressor as RFR
-
-from utils.ga_scheme import eaMuPlusLambda
-
 from sklearn.metrics import mean_absolute_error as mae
 
 creator.create("FitnessMulti", base.Fitness, weights=(-1,))
 creator.create("Individual", Individual, fitness=creator.FitnessMulti)
 
+
 def mape(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
+
 def mate(ind1, ind2):
     return ind1, ind2
 
+
 def mutate(ind1, mut_prob, mu, sigma):
-    return (ind1.mutate(mut_prob, mu, sigma), )
+    return (ind1.mutate(mut_prob, mu, sigma),)
+
 
 def create_individual(method, params):
     ind1 = creator.Individual(method, params.rand_init())
 
     return ind1
 
+
 class GeneticMetaEstimator:
-    def __init__(self, method, params, pop_size, iterations, norm_func=None, mut_prob=0.8, cross_prob=0.2, metrics=[Metric('MAE', mae), Metric('MAPE', mape)], input_df=True, *data):
+    def __init__(self, method, params, pop_size, iterations, norm_func=None, mut_prob=0.8, cross_prob=0.2,
+                 metrics=[Metric('MAE', mae), Metric('MAPE', mape)], input_df=True, *data):
         self.X_train, self.X_test, self.y_train, self.y_test = data
 
         if input_df:
@@ -246,13 +243,14 @@ class GeneticMetaEstimator:
         stats.register("min", np.min)
         stats.register("max", np.max)
 
-#         pop, log = eaMuPlusLambda(pop, self.engine, mu=self.pop_size, lambda_=int(self.pop_size * 0.8),
-#                                   cxpb=self.cross_prob, mutpb=self.mut_prob,
-#                                   ngen=self.iterations,
-#                                   stats=stats, halloffame=hof, verbose=True)
+        #         pop, log = eaMuPlusLambda(pop, self.engine, mu=self.pop_size, lambda_=int(self.pop_size * 0.8),
+        #                                   cxpb=self.cross_prob, mutpb=self.mut_prob,
+        #                                   ngen=self.iterations,
+        #                                   stats=stats, halloffame=hof, verbose=True)
 
-        pop, log = algorithms.eaSimple(pop, self.engine, cxpb=self.cross_prob, mutpb=self.mut_prob, ngen=self.iterations,
-                        stats=stats, halloffame=hof, verbose=verbose)
+        pop, log = algorithms.eaSimple(pop, self.engine, cxpb=self.cross_prob, mutpb=self.mut_prob,
+                                       ngen=self.iterations,
+                                       stats=stats, halloffame=hof, verbose=verbose)
 
         print("Best = {}".format(hof[0]))
         print("Best fit = {}".format(hof[0].fitness.values[0]))
